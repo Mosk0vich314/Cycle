@@ -64,6 +64,13 @@ export default function Stats() {
           </ul>
         )}
       </div>
+
+      <p className="text-center text-xs text-phase-muted/50">
+        v{new Date(__BUILD_TIME__).toLocaleString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        })}
+      </p>
     </div>
   );
 }

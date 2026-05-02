@@ -7,6 +7,9 @@ const REPO_NAME = 'Cycle';
 
 export default defineConfig({
   base: `/${REPO_NAME}/`,
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     VitePWA({
