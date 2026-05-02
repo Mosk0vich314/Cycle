@@ -30,6 +30,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Force the new service worker to activate immediately and take control of all
+        // open tabs / PWA windows, then drop stale precache entries from previous builds.
+        // Combined with the controllerchange reload in main.jsx, this means a new deploy
+        // is picked up automatically — no manual hard-refresh required, even on iOS PWA.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // Always serve a fresh index.html when online so users can't get stuck on an
+        // old shell that references deleted hashed assets.
+        navigateFallback: `/${REPO_NAME}/index.html`,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/media\.tenor\.com\/.*/i,
