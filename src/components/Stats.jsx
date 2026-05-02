@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { differenceInCalendarDays } from 'date-fns';
+import { useState } from 'react';
 import { useCycle } from '../context/CycleContext';
 import { regularityLabel, toDate } from '../utils/cycle';
 
@@ -14,7 +15,8 @@ function StatCard({ label, value, hint }) {
 }
 
 export default function Stats() {
-  const { cycles, cycleLength, bleedingDuration, stdDev, todayPhaseInfo } = useCycle();
+  const { cycles, cycleLength, bleedingDuration, stdDev, todayPhaseInfo, reset } = useCycle();
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -71,6 +73,35 @@ export default function Stats() {
           hour: '2-digit', minute: '2-digit',
         })}
       </p>
+
+      <div className="text-center pt-1">
+        {!confirmReset ? (
+          <button
+            onClick={() => setConfirmReset(true)}
+            className="text-xs text-phase-muted/40 hover:text-phase-muted/70 transition-colors"
+          >
+            Reset all data
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-phase-muted">This will delete all logged periods.</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => { reset(); setConfirmReset(false); }}
+                className="text-xs font-semibold text-red-400 hover:text-red-500 transition-colors"
+              >
+                Yes, delete everything
+              </button>
+              <button
+                onClick={() => setConfirmReset(false)}
+                className="text-xs text-phase-muted hover:text-phase-text transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

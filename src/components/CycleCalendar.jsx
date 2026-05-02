@@ -1,43 +1,37 @@
 import Calendar from 'react-calendar';
 import { useMemo, useState } from 'react';
-import { addDays, format, isSameDay } from 'date-fns';
+import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useCycle } from '../context/CycleContext';
 import { dayKey, predictFutureStarts, toDate } from '../utils/cycle';
 
-// ISO weekday: Mon=1 … Sun=7
 function isoWeekday(date) {
   const n = toDate(date).getDay();
   return n === 0 ? 7 : n;
 }
 
-// Classify a calendar tile into a CSS modifier.
-// Uses dayKey string comparison ('YYYY-MM-DD') which is lexicographically sortable
-// and fully timezone-safe — no Date object comparisons that could shift by UTC offset.
-function classifyTile(date, cycles, predictedSet, ovulationSet) {
-  const k       = dayKey(date);   // tile's local date as 'YYYY-MM-DD'
-  const weekday = isoWeekday(date);
+function pillClass(k, startKey, endKey, length) {
+  if (length === 1) return 'period-single';
+  const weekday = isoWeekday(k);
   const isMon   = weekday === 1;
   const isSun   = weekday === 7;
+  const isFirst = k === startKey;
+  const isLast  = k === endKey;
+  const roundL  = isFirst || isMon;
+  const roundR  = isLast  || isSun;
+  if (roundL && roundR) return 'period-isolated';
+  if (roundL)           return 'period-start';
+  if (roundR)           return 'period-end';
+  return 'period-mid';
+}
 
+function classifyTile(date, cycles, predictedSet, ovulationSet) {
+  const k = dayKey(date);
   for (const cycle of cycles) {
-    const startKey = cycle.start;                                      // 'YYYY-MM-DD'
+    const startKey = cycle.start;
     const endKey   = dayKey(addDays(toDate(cycle.start), cycle.length - 1));
-
-    if (k < startKey || k > endKey) continue;  // lexicographic range check
-
-    if (cycle.length === 1) return 'period-single';
-
-    const isFirstDay = k === startKey;
-    const isLastDay  = k === endKey;
-    const roundLeft  = isFirstDay || isMon;
-    const roundRight = isLastDay  || isSun;
-
-    if (roundLeft && roundRight) return 'period-isolated';
-    if (roundLeft)               return 'period-start';
-    if (roundRight)              return 'period-end';
-    return 'period-mid';
+    if (k < startKey || k > endKey) continue;
+    return pillClass(k, startKey, endKey, cycle.length);
   }
-
   if (predictedSet.has(k)) return 'predicted';
   if (ovulationSet.has(k)) return 'ovulation';
   return null;
@@ -55,7 +49,11 @@ export default function CycleCalendar() {
   } = useCycle();
 
   const [calendarDate, setCalendarDate] = useState(new Date());
-  // null | { mode:'pending', date } | { mode:'view'|'edit', cycleKey }
+  // null
+  // { mode:'logging-start' }
+  // { mode:'logging-end', startDate: Date }
+  // { mode:'pending', startDate: Date, length: number }
+  // { mode:'view'|'edit', cycleKey: string }
   const [card, setCard] = useState(null);
 
   const predictedPeriodSet = useMemo(() => {
@@ -76,39 +74,75 @@ export default function CycleCalendar() {
     return out;
   }, [cycles, cycleLength]);
 
-  const classify = (date) => classifyTile(date, cycles, predictedPeriodSet, ovulationSet);
-
   const tileClassName = ({ date, view }) => {
     if (view !== 'month') return '';
-    const cls = classify(date);
+    const k = dayKey(date);
+
+    // Selection preview
+    if (card?.mode === 'logging-end') {
+      const startKey = dayKey(card.startDate);
+      if (k === startKey) return 'cc-period-isolated';
+    }
+    if (card?.mode === 'pending') {
+      const startKey = dayKey(card.startDate);
+      const endKey   = dayKey(addDays(toDate(card.startDate), card.length - 1));
+      if (k >= startKey && k <= endKey) {
+        return `cc-${pillClass(k, startKey, endKey, card.length)}`;
+      }
+    }
+
+    const cls = classifyTile(date, cycles, predictedPeriodSet, ovulationSet);
     return cls ? `cc-${cls}` : '';
   };
 
   const tileContent = ({ date, view }) => {
     if (view !== 'month') return null;
-    if (classify(date) !== 'ovulation') return null;
+    const k = dayKey(date);
+    if (card?.mode === 'logging-end' || card?.mode === 'pending') return null;
+    if (classifyTile(date, cycles, predictedPeriodSet, ovulationSet) !== 'ovulation') return null;
     return <span className="cc-ov-emoji" aria-hidden>✨</span>;
   };
 
-  // --- tap: direct date-range lookup, no set dependency ---
   function handleDayTap(date) {
     const d = toDate(date);
     setCalendarDate(date);
 
+    if (card?.mode === 'logging-start') {
+      setCard({ mode: 'logging-end', startDate: d });
+      return;
+    }
+
+    if (card?.mode === 'logging-end') {
+      if (d >= card.startDate) {
+        const length = differenceInCalendarDays(d, card.startDate) + 1;
+        setCard({ mode: 'pending', startDate: card.startDate, length });
+      } else {
+        setCard({ mode: 'logging-end', startDate: d });
+      }
+      return;
+    }
+
+    if (card?.mode === 'pending') {
+      if (d >= card.startDate) {
+        const length = differenceInCalendarDays(d, card.startDate) + 1;
+        setCard({ ...card, length });
+      }
+      return;
+    }
+
+    // Default: tap existing period → view it
     const owning = cycles.find((c) => {
       const s = toDate(c.start);
       const e = addDays(s, c.length - 1);
       return d >= s && d <= e;
     });
-
     if (owning) setCard({ mode: 'view', cycleKey: owning.start });
-    else        setCard({ mode: 'pending', date });
   }
 
   function handleConfirm() {
     if (card?.mode !== 'pending') return;
-    addCycle(card.date);
-    setCard({ mode: 'view', cycleKey: dayKey(card.date) });
+    addCycle(card.startDate, card.length);
+    setCard({ mode: 'view', cycleKey: dayKey(card.startDate) });
   }
 
   const activeCycle =
@@ -134,19 +168,51 @@ export default function CycleCalendar() {
         />
       </div>
 
-      {!card && <HintCard phaseInfo={todayPhaseInfo} />}
+      {!card && (
+        <>
+          <HintCard phaseInfo={todayPhaseInfo} />
+          <button
+            onClick={() => setCard({ mode: 'logging-start' })}
+            className="w-full py-3 rounded-full bg-phase-accent text-white font-semibold
+                       shadow-squish active:scale-95 transition-transform"
+          >
+            Log Period 🌸
+          </button>
+        </>
+      )}
+
+      {card?.mode === 'logging-start' && (
+        <PromptCard
+          title="Tap the first day of your period"
+          onCancel={() => setCard(null)}
+        />
+      )}
+
+      {card?.mode === 'logging-end' && (
+        <PromptCard
+          title="Now tap the last day of your period"
+          subtitle={`Started: ${format(card.startDate, 'EEE, MMM d')}`}
+          onCancel={() => setCard(null)}
+        />
+      )}
 
       {card?.mode === 'pending' && (
         <PendingCard
-          date={card.date}
-          duration={bleedingDuration}
+          startDate={card.startDate}
+          length={card.length}
           onConfirm={handleConfirm}
           onCancel={() => setCard(null)}
         />
       )}
+
       {card?.mode === 'view' && activeCycle && (
-        <ViewCard cycle={activeCycle} onEdit={() => setCard({ mode: 'edit', cycleKey: card.cycleKey })} />
+        <ViewCard
+          cycle={activeCycle}
+          onEdit={() => setCard({ mode: 'edit', cycleKey: card.cycleKey })}
+          onClose={() => setCard(null)}
+        />
       )}
+
       {card?.mode === 'edit' && activeCycle && (
         <EditCard
           cycle={activeCycle}
@@ -161,8 +227,6 @@ export default function CycleCalendar() {
   );
 }
 
-// --- sub-cards (unchanged from previous version) ---
-
 function HintCard({ phaseInfo }) {
   return (
     <div className="bg-phase-surface/60 rounded-squish p-4 text-center space-y-0.5">
@@ -170,20 +234,38 @@ function HintCard({ phaseInfo }) {
         {phaseInfo.phase} phase
         {phaseInfo.dayInCycle && <span className="text-phase-muted font-normal"> · Day {phaseInfo.dayInCycle}</span>}
       </p>
-      <p className="text-xs text-phase-muted">Tap any day to log a period 🌸</p>
+      <p className="text-xs text-phase-muted">Tap a logged period to view it, or use the button below</p>
     </div>
   );
 }
 
-function PendingCard({ date, duration, onConfirm, onCancel }) {
+function PromptCard({ title, subtitle, onCancel }) {
+  return (
+    <div className="bg-phase-surface rounded-squish p-5 shadow-squish space-y-3">
+      <p className="font-semibold text-phase-text">{title}</p>
+      {subtitle && <p className="text-sm text-phase-muted">{subtitle}</p>}
+      <button
+        onClick={onCancel}
+        className="text-sm text-phase-muted hover:text-phase-text transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function PendingCard({ startDate, length, onConfirm, onCancel }) {
+  const endDate = addDays(startDate, length - 1);
   return (
     <div className="bg-phase-surface rounded-squish p-5 shadow-squish space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-wide text-phase-muted">Log period starting</p>
-        <p className="text-lg font-bold mt-0.5">{format(date, 'EEEE, MMMM d')}</p>
+        <p className="text-xs uppercase tracking-wide text-phase-muted">Log period</p>
+        <p className="text-lg font-bold mt-0.5">
+          {format(startDate, 'MMM d')} → {format(endDate, 'MMM d')}
+        </p>
         <p className="text-sm text-phase-muted mt-1">
-          {format(date, 'MMM d')} → {format(addDays(date, duration - 1), 'MMM d')} · {duration} days
-          <span className="text-xs opacity-70"> (adjustable after logging)</span>
+          {length} {length === 1 ? 'day' : 'days'}
+          <span className="text-xs opacity-70"> · tap a different end day to adjust</span>
         </p>
       </div>
       <div className="flex gap-3 items-center">
@@ -205,7 +287,7 @@ function PendingCard({ date, duration, onConfirm, onCancel }) {
   );
 }
 
-function ViewCard({ cycle, onEdit }) {
+function ViewCard({ cycle, onEdit, onClose }) {
   const start = toDate(cycle.start);
   const end   = addDays(start, cycle.length - 1);
   return (
@@ -216,13 +298,22 @@ function ViewCard({ cycle, onEdit }) {
           <p className="font-bold text-lg mt-0.5">{format(start, 'MMM d')} – {format(end, 'MMM d')}</p>
           <p className="text-sm text-phase-muted mt-0.5">{cycle.length} days</p>
         </div>
-        <button
-          onClick={onEdit}
-          className="shrink-0 px-4 py-2 rounded-full bg-phase-bg text-phase-accent
-                     text-sm font-semibold active:scale-95 transition-transform"
-        >
-          Edit ✏️
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onEdit}
+            className="shrink-0 px-4 py-2 rounded-full bg-phase-bg text-phase-accent
+                       text-sm font-semibold active:scale-95 transition-transform"
+          >
+            Edit ✏️
+          </button>
+          <button
+            onClick={onClose}
+            className="shrink-0 px-3 py-2 rounded-full bg-phase-bg text-phase-muted
+                       text-sm active:scale-95 transition-transform"
+          >
+            ✕
+          </button>
+        </div>
       </div>
     </div>
   );
