@@ -160,8 +160,8 @@ body {
 .cc-period-end,
 .cc-period-single,
 .cc-period-isolated {
-  background: var(--phase-accent);
-  color: #fff;
+  background: var(--phase-accent) !important;
+  color: #fff !important;
   font-weight: 700;
 }
 
@@ -187,7 +187,7 @@ body {
 
 /* ── Predicted future period: medium-strength tint ── */
 .cc-predicted {
-  background: color-mix(in srgb, var(--phase-primary) 65%, transparent);
+  background: color-mix(in srgb, var(--phase-primary) 65%, transparent) !important;
   color: var(--phase-text);
   font-weight: 600;
   font-style: italic;
@@ -195,7 +195,7 @@ body {
 
 /* ── Ovulation window: visible tint + emoji ── */
 .cc-ovulation {
-  background: color-mix(in srgb, var(--phase-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--phase-accent) 22%, transparent) !important;
 }
 
 /* ✨ emoji pinned to the bottom of an ovulation tile */
