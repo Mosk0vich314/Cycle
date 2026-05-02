@@ -29,6 +29,7 @@ body {
 }
 
 * {
+  /* border-radius intentionally excluded — pill-shape reclassification should be instant */
   transition-property: background-color, border-color, color, fill, stroke, box-shadow;
   transition-duration: 400ms;
   transition-timing-function: ease;
@@ -148,52 +149,73 @@ body {
   color: var(--phase-text);
 }
 
-/* ── Logged bleeding day: soft filled circle using the phase's primary tint ── */
-.cc-period {
-  background: var(--phase-primary);
-  color: var(--phase-text);
+/* ═══════════════════════════════════════════════════════════
+   LOGGED PERIOD — pill / range shape
+   Tiles carry position classes: start | mid | end | single | isolated
+   so contiguous days form a connected band across the row.
+   ═══════════════════════════════════════════════════════════ */
+
+.cc-period-start,
+.cc-period-mid,
+.cc-period-end,
+.cc-period-single,
+.cc-period-isolated {
+  background: var(--phase-accent);
+  color: #fff;
   font-weight: 700;
 }
-/* Keep the filled look even when the phase theme transitions */
-.cc-period.react-calendar__tile--active,
-.cc-period.react-calendar__tile--active:enabled:hover {
+
+/* Left-rounded, right-flat → connects to next day */
+.cc-period-start    { border-radius: 9999px 0 0 9999px !important; }
+/* Fully flat → bridges between start and end */
+.cc-period-mid      { border-radius: 0 !important; }
+/* Right-rounded, left-flat */
+.cc-period-end      { border-radius: 0 9999px 9999px 0 !important; }
+/* Stand-alone circle (1-day period, or row-wrap isolation) */
+.cc-period-single,
+.cc-period-isolated { border-radius: 9999px !important; }
+
+/* Active (selected) tile within a range always shows as a full circle */
+.cc-period-start.react-calendar__tile--active,
+.cc-period-mid.react-calendar__tile--active,
+.cc-period-end.react-calendar__tile--active,
+.cc-period-isolated.react-calendar__tile--active {
+  border-radius: 9999px !important;
   background: var(--phase-accent) !important;
   color: #fff !important;
 }
 
-/* ── Predicted future period: soft tinted fill, no border ──
-   A lighter version of the logged-period fill. Using a tint of phase-primary
-   avoids the misaligned-dashes problem that dashed circular borders always cause
-   on adjacent cells. The legend uses a dot + italic label to distinguish it. */
+/* ── Predicted future period: medium-strength tint ── */
 .cc-predicted {
-  background: color-mix(in srgb, var(--phase-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--phase-primary) 65%, transparent);
   color: var(--phase-text);
+  font-weight: 600;
   font-style: italic;
 }
 
-/* ── Ovulation window: no background — emoji via tileContent ── */
+/* ── Ovulation window: visible tint + emoji ── */
 .cc-ovulation {
-  background: transparent;
+  background: color-mix(in srgb, var(--phase-accent) 22%, transparent);
 }
 
-/* Small ✨ emoji badge pinned to the bottom of an ovulation tile */
+/* ✨ emoji pinned to the bottom of an ovulation tile */
 .cc-ov-emoji {
   position: absolute;
-  bottom: 3px;
+  bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1;
   pointer-events: none;
 }
 
-/* Legend swatches (static, inline) */
+/* ── Legend swatches ── */
 .cc-legend-period {
   display: inline-block;
-  width: 14px;
+  width: 20px;
   height: 14px;
   border-radius: 9999px;
-  background: var(--phase-primary);
+  background: var(--phase-accent);
   vertical-align: middle;
 }
 .cc-legend-predicted {
@@ -201,12 +223,12 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--phase-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--phase-primary) 65%, transparent);
   vertical-align: middle;
 }
 .cc-legend-ovulation {
   display: inline-block;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   vertical-align: middle;
 }

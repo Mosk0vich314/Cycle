@@ -2,18 +2,52 @@ import Calendar from 'react-calendar';
 import { useMemo, useState } from 'react';
 import { addDays, format, isSameDay } from 'date-fns';
 import { useCycle } from '../context/CycleContext';
-import { dayKey, getCycleBleedingDays, predictFutureStarts, toDate } from '../utils/cycle';
+import { dayKey, predictFutureStarts, toDate } from '../utils/cycle';
 
-// card state shape:
-//   null                                   → no card, show hint
-//   { mode: 'pending', date: Date }        → tapped empty day, awaiting confirmation
-//   { mode: 'view',    cycleKey: string }  → confirmed period, read-only summary
-//   { mode: 'edit',    cycleKey: string }  → same period, duration controls visible
+// ISO weekday: Mon=1 … Sun=7
+function isoWeekday(date) {
+  const n = toDate(date).getDay();
+  return n === 0 ? 7 : n;
+}
+
+// Classify a calendar tile into a CSS modifier.
+// Confirmed periods: returns 'period-start' | 'period-mid' | 'period-end'
+//                           | 'period-single' | 'period-isolated'
+// (row-wrap aware so the pill shape resets at each Monday / Sunday boundary)
+// Other:           'predicted' | 'ovulation' | null
+function classifyTile(date, cycles, predictedSet, ovulationSet) {
+  const d       = toDate(date);
+  const k       = dayKey(d);
+  const weekday = isoWeekday(d);
+  const isMon   = weekday === 1;
+  const isSun   = weekday === 7;
+
+  for (const cycle of cycles) {
+    const start = toDate(cycle.start);
+    const end   = addDays(start, cycle.length - 1);
+    if (d < start || d > end) continue;
+
+    if (cycle.length === 1) return 'period-single';
+
+    const isFirstDay = k === dayKey(start);
+    const isLastDay  = k === dayKey(end);
+    const roundLeft  = isFirstDay || isMon;
+    const roundRight = isLastDay  || isSun;
+
+    if (roundLeft && roundRight) return 'period-isolated';
+    if (roundLeft)               return 'period-start';
+    if (roundRight)              return 'period-end';
+    return 'period-mid';
+  }
+
+  if (predictedSet.has(k)) return 'predicted';
+  if (ovulationSet.has(k)) return 'ovulation';
+  return null;
+}
 
 export default function CycleCalendar() {
   const {
     cycles,
-    confirmedBleedingSet,
     cycleLength,
     bleedingDuration,
     addCycle,
@@ -23,9 +57,8 @@ export default function CycleCalendar() {
   } = useCycle();
 
   const [calendarDate, setCalendarDate] = useState(new Date());
+  // null | { mode:'pending', date } | { mode:'view'|'edit', cycleKey }
   const [card, setCard] = useState(null);
-
-  // --- day classification sets (recomputed only when cycles/cycleLength/bleedingDuration change) ---
 
   const predictedPeriodSet = useMemo(() => {
     const out = new Set();
@@ -39,51 +72,40 @@ export default function CycleCalendar() {
     const out = new Set();
     const ovOffset = Math.max(10, cycleLength - 14);
     [...cycles.map((c) => toDate(c.start)), ...predictFutureStarts(cycles, cycleLength, 6)]
-      .forEach((start) => {
-        for (let d = -1; d <= 1; d++) out.add(dayKey(addDays(start, ovOffset - 1 + d)));
+      .forEach((s) => {
+        for (let d = -1; d <= 1; d++) out.add(dayKey(addDays(s, ovOffset - 1 + d)));
       });
     return out;
   }, [cycles, cycleLength]);
 
-  function classifyDay(date) {
-    const k = dayKey(date);
-    if (confirmedBleedingSet.has(k)) return 'period';
-    if (predictedPeriodSet.has(k))   return 'predicted';
-    if (ovulationSet.has(k))          return 'ovulation';
-    return null;
-  }
+  const classify = (date) => classifyTile(date, cycles, predictedPeriodSet, ovulationSet);
 
   const tileClassName = ({ date, view }) => {
     if (view !== 'month') return '';
-    const cls = classifyDay(date);
+    const cls = classify(date);
     return cls ? `cc-${cls}` : '';
   };
 
-  // Only ovulation days get tile content — a tiny ✨ emoji badge.
-  // Period and predicted styles are handled entirely via CSS classes (no inner elements).
   const tileContent = ({ date, view }) => {
     if (view !== 'month') return null;
-    if (classifyDay(date) !== 'ovulation') return null;
+    if (classify(date) !== 'ovulation') return null;
     return <span className="cc-ov-emoji" aria-hidden>✨</span>;
   };
 
-  // --- tap handler ---
-
+  // --- tap: direct date-range lookup, no set dependency ---
   function handleDayTap(date) {
-    const k = dayKey(date);
+    const d = toDate(date);
     setCalendarDate(date);
 
-    const owning = cycles.find((c) => new Set(getCycleBleedingDays(c)).has(k));
-    if (owning) {
-      // Already logged → open the read-only summary first
-      setCard({ mode: 'view', cycleKey: owning.start });
-    } else {
-      // Empty or predicted day → ask for confirmation before writing anything
-      setCard({ mode: 'pending', date });
-    }
-  }
+    const owning = cycles.find((c) => {
+      const s = toDate(c.start);
+      const e = addDays(s, c.length - 1);
+      return d >= s && d <= e;
+    });
 
-  // --- card actions ---
+    if (owning) setCard({ mode: 'view', cycleKey: owning.start });
+    else        setCard({ mode: 'pending', date });
+  }
 
   function handleConfirm() {
     if (card?.mode !== 'pending') return;
@@ -91,26 +113,6 @@ export default function CycleCalendar() {
     setCard({ mode: 'view', cycleKey: dayKey(card.date) });
   }
 
-  function handleCancelPending() {
-    setCard(null);
-  }
-
-  function handleStartEdit() {
-    if (card?.mode !== 'view') return;
-    setCard({ mode: 'edit', cycleKey: card.cycleKey });
-  }
-
-  function handleDoneEditing() {
-    if (card?.mode !== 'edit') return;
-    setCard({ mode: 'view', cycleKey: card.cycleKey });
-  }
-
-  function handleRemove(cycleKey) {
-    removeCycle(cycleKey);
-    setCard(null);
-  }
-
-  // The cycle object currently shown in the view/edit card
   const activeCycle =
     card?.mode === 'view' || card?.mode === 'edit'
       ? cycles.find((c) => c.start === card.cycleKey) ?? null
@@ -134,27 +136,25 @@ export default function CycleCalendar() {
         />
       </div>
 
-      {/* Bottom info / action card */}
-      {!card && (
-        <HintCard phaseInfo={todayPhaseInfo} />
-      )}
+      {!card && <HintCard phaseInfo={todayPhaseInfo} />}
+
       {card?.mode === 'pending' && (
         <PendingCard
           date={card.date}
           duration={bleedingDuration}
           onConfirm={handleConfirm}
-          onCancel={handleCancelPending}
+          onCancel={() => setCard(null)}
         />
       )}
       {card?.mode === 'view' && activeCycle && (
-        <ViewCard cycle={activeCycle} onEdit={handleStartEdit} />
+        <ViewCard cycle={activeCycle} onEdit={() => setCard({ mode: 'edit', cycleKey: card.cycleKey })} />
       )}
       {card?.mode === 'edit' && activeCycle && (
         <EditCard
           cycle={activeCycle}
           onAdjust={(delta) => adjustCycleDuration(activeCycle.start, delta)}
-          onDone={handleDoneEditing}
-          onRemove={() => handleRemove(activeCycle.start)}
+          onDone={() => setCard({ mode: 'view', cycleKey: card.cycleKey })}
+          onRemove={() => { removeCycle(activeCycle.start); setCard(null); }}
         />
       )}
 
@@ -163,7 +163,7 @@ export default function CycleCalendar() {
   );
 }
 
-// --- sub-cards ---
+// --- sub-cards (unchanged from previous version) ---
 
 function HintCard({ phaseInfo }) {
   return (
@@ -178,15 +178,13 @@ function HintCard({ phaseInfo }) {
 }
 
 function PendingCard({ date, duration, onConfirm, onCancel }) {
-  const start = date;
-  const end   = addDays(date, duration - 1);
   return (
     <div className="bg-phase-surface rounded-squish p-5 shadow-squish space-y-4">
       <div>
         <p className="text-xs uppercase tracking-wide text-phase-muted">Log period starting</p>
-        <p className="text-lg font-bold mt-0.5">{format(start, 'EEEE, MMMM d')}</p>
+        <p className="text-lg font-bold mt-0.5">{format(date, 'EEEE, MMMM d')}</p>
         <p className="text-sm text-phase-muted mt-1">
-          {format(start, 'MMM d')} → {format(end, 'MMM d')} · {duration} days
+          {format(date, 'MMM d')} → {format(addDays(date, duration - 1), 'MMM d')} · {duration} days
           <span className="text-xs opacity-70"> (adjustable after logging)</span>
         </p>
       </div>
@@ -200,8 +198,7 @@ function PendingCard({ date, duration, onConfirm, onCancel }) {
         </button>
         <button
           onClick={onCancel}
-          className="px-5 py-3 rounded-full text-phase-muted font-medium
-                     hover:text-phase-text transition-colors"
+          className="px-5 py-3 rounded-full text-phase-muted font-medium hover:text-phase-text transition-colors"
         >
           Cancel
         </button>
@@ -218,9 +215,7 @@ function ViewCard({ cycle, onEdit }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-phase-muted">Logged period</p>
-          <p className="font-bold text-lg mt-0.5">
-            {format(start, 'MMM d')} – {format(end, 'MMM d')}
-          </p>
+          <p className="font-bold text-lg mt-0.5">{format(start, 'MMM d')} – {format(end, 'MMM d')}</p>
           <p className="text-sm text-phase-muted mt-0.5">{cycle.length} days</p>
         </div>
         <button
@@ -243,9 +238,7 @@ function EditCard({ cycle, onAdjust, onDone, onRemove }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-phase-muted">Editing period</p>
-          <p className="font-bold mt-0.5">
-            {format(start, 'MMM d')} – {format(end, 'MMM d')}
-          </p>
+          <p className="font-bold mt-0.5">{format(start, 'MMM d')} – {format(end, 'MMM d')}</p>
         </div>
         <button
           onClick={onDone}
@@ -255,33 +248,22 @@ function EditCard({ cycle, onAdjust, onDone, onRemove }) {
           Done ✓
         </button>
       </div>
-
       <div className="flex items-center justify-between">
         <span className="text-sm text-phase-muted">Duration</span>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => onAdjust(-1)}
-            aria-label="Shorten by one day"
+          <button onClick={() => onAdjust(-1)}
             className="w-10 h-10 rounded-full bg-phase-bg text-phase-accent font-bold text-xl
-                       flex items-center justify-center active:scale-95 transition-transform"
-          >−</button>
+                       flex items-center justify-center active:scale-95 transition-transform">−</button>
           <span className="w-16 text-center font-bold tabular-nums text-phase-text">
             {cycle.length} {cycle.length === 1 ? 'day' : 'days'}
           </span>
-          <button
-            onClick={() => onAdjust(+1)}
-            aria-label="Extend by one day"
+          <button onClick={() => onAdjust(+1)}
             className="w-10 h-10 rounded-full bg-phase-bg text-phase-accent font-bold text-xl
-                       flex items-center justify-center active:scale-95 transition-transform"
-          >+</button>
+                       flex items-center justify-center active:scale-95 transition-transform">+</button>
         </div>
       </div>
-
-      <button
-        onClick={onRemove}
-        className="w-full text-center text-xs text-phase-muted/60 hover:text-phase-muted
-                   py-1 transition-colors"
-      >
+      <button onClick={onRemove}
+        className="w-full text-center text-xs text-phase-muted/60 hover:text-phase-muted py-1 transition-colors">
         Remove this period
       </button>
     </div>
