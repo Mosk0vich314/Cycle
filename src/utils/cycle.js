@@ -1,6 +1,15 @@
 import { differenceInCalendarDays, addDays, parseISO, isValid } from 'date-fns';
 
-export const toDate = (d) => (d instanceof Date ? d : parseISO(d));
+// Parse a value into a Date at LOCAL midnight.
+// date-fns parseISO follows the ECMAScript spec: date-only strings ('YYYY-MM-DD')
+// are treated as UTC midnight, which shifts the date by the local UTC offset.
+// Using new Date(y, m-1, d) guarantees local midnight regardless of timezone.
+export function toDate(d) {
+  if (d instanceof Date) return d;
+  const parts = String(d).split('-');
+  if (parts.length === 3) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return parseISO(d); // fallback for full ISO datetime strings
+}
 
 export function dayKey(date) {
   const d = toDate(date);

@@ -11,26 +11,24 @@ function isoWeekday(date) {
 }
 
 // Classify a calendar tile into a CSS modifier.
-// Confirmed periods: returns 'period-start' | 'period-mid' | 'period-end'
-//                           | 'period-single' | 'period-isolated'
-// (row-wrap aware so the pill shape resets at each Monday / Sunday boundary)
-// Other:           'predicted' | 'ovulation' | null
+// Uses dayKey string comparison ('YYYY-MM-DD') which is lexicographically sortable
+// and fully timezone-safe — no Date object comparisons that could shift by UTC offset.
 function classifyTile(date, cycles, predictedSet, ovulationSet) {
-  const d       = toDate(date);
-  const k       = dayKey(d);
-  const weekday = isoWeekday(d);
+  const k       = dayKey(date);   // tile's local date as 'YYYY-MM-DD'
+  const weekday = isoWeekday(date);
   const isMon   = weekday === 1;
   const isSun   = weekday === 7;
 
   for (const cycle of cycles) {
-    const start = toDate(cycle.start);
-    const end   = addDays(start, cycle.length - 1);
-    if (d < start || d > end) continue;
+    const startKey = cycle.start;                                      // 'YYYY-MM-DD'
+    const endKey   = dayKey(addDays(toDate(cycle.start), cycle.length - 1));
+
+    if (k < startKey || k > endKey) continue;  // lexicographic range check
 
     if (cycle.length === 1) return 'period-single';
 
-    const isFirstDay = k === dayKey(start);
-    const isLastDay  = k === dayKey(end);
+    const isFirstDay = k === startKey;
+    const isLastDay  = k === endKey;
     const roundLeft  = isFirstDay || isMon;
     const roundRight = isLastDay  || isSun;
 
