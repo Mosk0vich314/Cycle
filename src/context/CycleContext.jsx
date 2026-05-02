@@ -5,87 +5,100 @@ import {
   computeAverageBleedingDuration,
   computeCycleStdDev,
   getPhaseForDate,
-  sortStarts,
+  sortCycles,
   dayKey,
+  getCycleBleedingDays,
 } from '../utils/cycle';
 import { ThemeProvider } from '../theme/ThemeProvider';
 
 const CycleContext = createContext(null);
 
+// v2 schema: periods are stored as cycle objects, not flat day arrays.
+// Using a new storage key so old data doesn't conflict.
 const INITIAL = {
-  periodStarts: [], // ISO yyyy-mm-dd strings — first day of each logged period
-  periodDays: [],   // ISO yyyy-mm-dd strings — every individual bleeding day logged
+  cycles: [],           // [{ start: 'yyyy-mm-dd', length: number }]
   manualCycleLength: null,
-  manualBleedingDuration: null,
 };
 
+const DEFAULT_BLEEDING_DURATION = 5;
+
 export function CycleProvider({ children }) {
-  const [data, setData] = useLocalStorage('cute-cycle-data-v1', INITIAL);
+  const [data, setData] = useLocalStorage('cute-cycle-data-v2', INITIAL);
+
+  // Add a new cycle (or replace one with the same start key).
+  const addCycle = useCallback((date, length) => {
+    const start = dayKey(date);
+    setData((prev) => {
+      const bleedLen = length ?? computeAverageBleedingDuration(prev.cycles, DEFAULT_BLEEDING_DURATION);
+      // Remove any existing cycle with this exact start (idempotent upsert).
+      const rest = prev.cycles.filter((c) => c.start !== start);
+      return { ...prev, cycles: [...rest, { start, length: bleedLen }] };
+    });
+  }, [setData]);
+
+  // Remove a cycle by its start key.
+  const removeCycle = useCallback((startKey) => {
+    setData((prev) => ({ ...prev, cycles: prev.cycles.filter((c) => c.start !== startKey) }));
+  }, [setData]);
+
+  // Grow or shrink the bleeding window of an existing cycle by `delta` days (±1).
+  const adjustCycleDuration = useCallback((startKey, delta) => {
+    setData((prev) => ({
+      ...prev,
+      cycles: prev.cycles.map((c) =>
+        c.start === startKey ? { ...c, length: Math.max(1, Math.min(14, c.length + delta)) } : c
+      ),
+    }));
+  }, [setData]);
+
+  const reset = useCallback(() => setData(INITIAL), [setData]);
 
   const update = useCallback((patch) => {
     setData((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
   }, [setData]);
 
-  const togglePeriodDay = useCallback((date) => {
-    const k = dayKey(date);
-    setData((prev) => {
-      const has = prev.periodDays.includes(k);
-      const periodDays = has ? prev.periodDays.filter((d) => d !== k) : [...prev.periodDays, k];
-      // Recompute periodStarts from periodDays: a "start" is a bleeding day whose previous day is NOT bleeding.
-      const sortedDays = [...new Set(periodDays)].sort();
-      const set = new Set(sortedDays);
-      const periodStarts = sortedDays.filter((d) => {
-        const prevDay = new Date(d);
-        prevDay.setDate(prevDay.getDate() - 1);
-        return !set.has(dayKey(prevDay));
-      });
-      return { ...prev, periodDays, periodStarts };
-    });
-  }, [setData]);
-
-  const reset = useCallback(() => setData(INITIAL), [setData]);
-
+  // ----- derived stats -----
   const cycleLength = useMemo(
-    () => data.manualCycleLength || computeAverageCycleLength(data.periodStarts, 28),
-    [data.manualCycleLength, data.periodStarts],
+    () => data.manualCycleLength ?? computeAverageCycleLength(data.cycles, 28),
+    [data.manualCycleLength, data.cycles],
   );
 
   const bleedingDuration = useMemo(
-    () => data.manualBleedingDuration || computeAverageBleedingDuration(data.periodDays, 5),
-    [data.manualBleedingDuration, data.periodDays],
+    () => computeAverageBleedingDuration(data.cycles, DEFAULT_BLEEDING_DURATION),
+    [data.cycles],
   );
 
-  const stdDev = useMemo(() => computeCycleStdDev(data.periodStarts), [data.periodStarts]);
+  const stdDev = useMemo(() => computeCycleStdDev(data.cycles), [data.cycles]);
 
   const today = useMemo(() => new Date(), []);
   const todayPhaseInfo = useMemo(
-    () => getPhaseForDate({
-      date: today,
-      starts: data.periodStarts,
-      cycleLength,
-      bleedingDuration,
-    }),
-    [today, data.periodStarts, cycleLength, bleedingDuration],
+    () => getPhaseForDate({ date: today, cycles: data.cycles, cycleLength }),
+    [today, data.cycles, cycleLength],
   );
 
+  // Pre-built set of all confirmed bleeding day-keys for O(1) calendar lookups.
+  const confirmedBleedingSet = useMemo(() => {
+    const out = new Set();
+    for (const c of data.cycles) getCycleBleedingDays(c).forEach((k) => out.add(k));
+    return out;
+  }, [data.cycles]);
+
   const value = useMemo(() => ({
-    ...data,
-    sortedStarts: sortStarts(data.periodStarts),
+    cycles: sortCycles(data.cycles),
+    confirmedBleedingSet,
     cycleLength,
     bleedingDuration,
     stdDev,
     todayPhase: todayPhaseInfo.phase,
     todayPhaseInfo,
-    update,
-    togglePeriodDay,
+    addCycle,
+    removeCycle,
+    adjustCycleDuration,
     reset,
-    getPhaseForDate: (date) => getPhaseForDate({
-      date,
-      starts: data.periodStarts,
-      cycleLength,
-      bleedingDuration,
-    }),
-  }), [data, cycleLength, bleedingDuration, stdDev, todayPhaseInfo, update, togglePeriodDay, reset]);
+    update,
+    getPhaseForDate: (date) => getPhaseForDate({ date, cycles: data.cycles, cycleLength }),
+  }), [data.cycles, confirmedBleedingSet, cycleLength, bleedingDuration, stdDev,
+      todayPhaseInfo, addCycle, removeCycle, adjustCycleDuration, reset, update]);
 
   return (
     <CycleContext.Provider value={value}>
