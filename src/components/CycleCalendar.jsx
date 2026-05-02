@@ -59,10 +59,12 @@ export default function CycleCalendar() {
     return cls ? `cc-${cls}` : '';
   };
 
+  // Only ovulation days get tile content — a tiny ✨ emoji badge.
+  // Period and predicted styles are handled entirely via CSS classes (no inner elements).
   const tileContent = ({ date, view }) => {
     if (view !== 'month') return null;
-    const cls = classifyDay(date);
-    return cls ? <span className={`cc-dot cc-dot-${cls}`} aria-hidden /> : null;
+    if (classifyDay(date) !== 'ovulation') return null;
+    return <span className="cc-ov-emoji" aria-hidden>✨</span>;
   };
 
   // --- tap handler ---
@@ -288,17 +290,19 @@ function EditCard({ cycle, onAdjust, onDone, onRemove }) {
 
 function Legend() {
   return (
-    <div className="flex flex-wrap gap-3 justify-center text-xs text-phase-muted">
-      {[
-        { cls: 'period',    label: 'Logged period' },
-        { cls: 'predicted', label: 'Predicted period' },
-        { cls: 'ovulation', label: 'Ovulation window' },
-      ].map(({ cls, label }) => (
-        <span key={cls} className="inline-flex items-center gap-1.5">
-          <span className={`cc-dot cc-dot-${cls} static`} />
-          {label}
-        </span>
-      ))}
+    <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center text-xs text-phase-muted">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="cc-legend-period" />
+        Logged period
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="cc-legend-predicted" />
+        Predicted period
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="cc-legend-ovulation">✨</span>
+        Ovulation window
+      </span>
     </div>
   );
 }

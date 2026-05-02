@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
-import { differenceInCalendarDays, format } from 'date-fns';
+import { format } from 'date-fns';
+import { differenceInCalendarDays } from 'date-fns';
 import { useCycle } from '../context/CycleContext';
-import { regularityLabel, predictFutureStarts, toDate } from '../utils/cycle';
+import { regularityLabel, toDate } from '../utils/cycle';
 
 function StatCard({ label, value, hint }) {
   return (
@@ -15,13 +15,6 @@ function StatCard({ label, value, hint }) {
 
 export default function Stats() {
   const { cycles, cycleLength, bleedingDuration, stdDev, todayPhaseInfo } = useCycle();
-
-  const nextStart = useMemo(() => predictFutureStarts(cycles, cycleLength, 1)[0] ?? null, [cycles, cycleLength]);
-
-  const daysUntilNext = useMemo(
-    () => nextStart ? Math.max(0, differenceInCalendarDays(nextStart, new Date())) : null,
-    [nextStart],
-  );
 
   return (
     <div className="space-y-4">
@@ -46,20 +39,6 @@ export default function Stats() {
           value={todayPhaseInfo.dayInCycle ? `Day ${todayPhaseInfo.dayInCycle}` : '—'}
           hint={`Phase: ${todayPhaseInfo.phase}`}
         />
-      </div>
-
-      <div className="bg-phase-surface rounded-squish p-5 shadow-squish">
-        <h3 className="font-semibold mb-2">Next period</h3>
-        {nextStart ? (
-          <p className="text-phase-text">
-            <span className="text-2xl font-bold text-phase-accent">{format(nextStart, 'MMM d')}</span>
-            <span className="text-phase-muted">
-              {' '}· in {daysUntilNext} day{daysUntilNext === 1 ? '' : 's'}
-            </span>
-          </p>
-        ) : (
-          <p className="text-sm text-phase-muted">Log a period to start predicting 🌷</p>
-        )}
       </div>
 
       <div className="bg-phase-surface/70 rounded-squish p-5">
