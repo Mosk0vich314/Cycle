@@ -161,13 +161,14 @@ body {
   color: #fff !important;
 }
 
-/* ── Predicted future period: dashed accent border, no fill ── */
-/* border (not outline) so it follows the border-radius pill shape */
+/* ── Predicted future period: soft tinted fill, no border ──
+   A lighter version of the logged-period fill. Using a tint of phase-primary
+   avoids the misaligned-dashes problem that dashed circular borders always cause
+   on adjacent cells. The legend uses a dot + italic label to distinguish it. */
 .cc-predicted {
-  background: transparent;
-  border: 2.5px dashed var(--phase-accent) !important;
-  box-sizing: border-box;
+  background: color-mix(in srgb, var(--phase-primary) 38%, transparent);
   color: var(--phase-text);
+  font-style: italic;
 }
 
 /* ── Ovulation window: no background — emoji via tileContent ── */
@@ -200,8 +201,7 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  border: 2px dashed var(--phase-accent);
-  box-sizing: border-box;
+  background: color-mix(in srgb, var(--phase-primary) 38%, transparent);
   vertical-align: middle;
 }
 .cc-legend-ovulation {
