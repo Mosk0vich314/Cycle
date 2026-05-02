@@ -1,19 +1,19 @@
 // Swap these Tenor URLs out for whichever Peachu & Goma GIFs you prefer — search "mochi peach cat <vibe>" on Tenor.
 const PHASE_GIFS = {
   menstruation: {
-    src: 'https://media.tenor.com/Hk_3qK7VyKAAAAAi/peach-and-goma-mochi-cat.gif',
+    src: 'https://media.tenor.com/NPpAVYU5NBQAAAAi/vvv-goma-peach-grow-comfort.gif',
     caption: 'Cuddle in. You\'re doing great. 🌸',
   },
   follicular: {
-    src: 'https://media.tenor.com/8m6X4F-vR9AAAAAi/peach-cat-flowers.gif',
+    src: 'https://media.tenor.com/d4oQ9dYvB5UAAAAi/peach-goma.gif',
     caption: 'Fresh start energy! 🌿',
   },
   ovulation: {
-    src: 'https://media.tenor.com/9vY9Tn5Y9wEAAAAi/peach-cat-dance.gif',
+    src: 'https://media.tenor.com/cc-cpgM3FToAAAAi/peach-and-goma-jumping.gif',
     caption: 'Sparkle mode: ON ✨',
   },
   luteal: {
-    src: 'https://media.tenor.com/q0t5h6cBoO0AAAAi/peach-cat-cozy.gif',
+    src: 'https://media.tenor.com/qBFMmeVNUR4AAAAi/peach-goma.gif',
     caption: 'Cozy peachy vibes 🍑',
   },
 };
