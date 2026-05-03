@@ -6,9 +6,10 @@
 const FILE_NAME = 'cycle-sync.json';
 const API = 'https://api.github.com';
 
-export const TOKEN_KEY  = 'cute-cycle-sync-token';
-export const GIST_KEY   = 'cute-cycle-sync-gist-id';
-export const PARTNER_KEY = 'cute-cycle-partner-mode';
+export const TOKEN_KEY       = 'cute-cycle-sync-token';
+export const GIST_KEY        = 'cute-cycle-sync-gist-id';
+export const PARTNER_KEY     = 'cute-cycle-partner-mode';
+export const LAST_PUSHED_KEY = 'cute-cycle-last-pushed-snapshot';
 
 function headers(token) {
   const h = {

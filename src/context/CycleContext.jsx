@@ -10,7 +10,7 @@ import {
   getCycleBleedingDays,
 } from '../utils/cycle';
 import { ThemeProvider } from '../theme/ThemeProvider';
-import { PARTNER_KEY } from '../services/sync';
+import { PARTNER_KEY, LAST_PUSHED_KEY } from '../services/sync';
 
 const CycleContext = createContext(null);
 
@@ -25,7 +25,8 @@ const DEFAULT_BLEEDING_DURATION = 5;
 
 export function CycleProvider({ children }) {
   const [data, setData] = useLocalStorage('cute-cycle-data-v2', INITIAL);
-  const [isPartnerMode, setPartnerMode] = useLocalStorage(PARTNER_KEY, false);
+  const [isPartnerMode, setPartnerMode]           = useLocalStorage(PARTNER_KEY, false);
+  const [lastPushedSnapshot, setLastPushedSnapshot] = useLocalStorage(LAST_PUSHED_KEY, null);
 
   // Replace the entire stored payload — used when pulling a remote sync.
   const replaceAll = useCallback((next) => {
@@ -93,6 +94,11 @@ export function CycleProvider({ children }) {
     return out;
   }, [data.cycles]);
 
+  const currentSnapshot = JSON.stringify(sortCycles(data.cycles));
+  const hasUnsyncedChanges = !isPartnerMode
+    && data.cycles.length > 0
+    && currentSnapshot !== lastPushedSnapshot;
+
   const value = useMemo(() => ({
     data,                         // raw payload, used by sync push
     cycles: sortCycles(data.cycles),
@@ -104,6 +110,8 @@ export function CycleProvider({ children }) {
     todayPhaseInfo,
     isPartnerMode,
     setPartnerMode,
+    hasUnsyncedChanges,
+    setLastPushedSnapshot,
     addCycle,
     removeCycle,
     adjustCycleDuration,
@@ -113,6 +121,7 @@ export function CycleProvider({ children }) {
     getPhaseForDate: (date) => getPhaseForDate({ date, cycles: data.cycles, cycleLength }),
   }), [data, confirmedBleedingSet, cycleLength, bleedingDuration, stdDev,
       todayPhaseInfo, isPartnerMode, setPartnerMode,
+      hasUnsyncedChanges, setLastPushedSnapshot,
       addCycle, removeCycle, adjustCycleDuration, reset, update, replaceAll]);
 
   return (

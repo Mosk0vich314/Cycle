@@ -17,7 +17,7 @@ function StatCard({ label, value, hint }) {
 }
 
 function PartnerSync() {
-  const { data, replaceAll, isPartnerMode, setPartnerMode } = useCycle();
+  const { data, replaceAll, isPartnerMode, setPartnerMode, setLastPushedSnapshot, cycles } = useCycle();
   const [token, setToken]   = useLocalStorage(TOKEN_KEY, '');
   const [gistId, setGistId] = useLocalStorage(GIST_KEY, '');
   const [busy, setBusy]     = useState(null); // 'push' | 'pull' | null
@@ -30,6 +30,7 @@ function PartnerSync() {
         token, gistId,
         payload: { ...data, syncedAt: new Date().toISOString(), schema: 1 },
       });
+      setLastPushedSnapshot(JSON.stringify(cycles));
       setStatus({ kind: 'ok', msg: 'Pushed to Gist 🌸' });
     } catch (e) {
       setStatus({ kind: 'err', msg: e.message });

@@ -98,6 +98,21 @@ function HomeView() {
   );
 }
 
+function SyncNudge() {
+  const { hasUnsyncedChanges } = useCycle();
+  if (!hasUnsyncedChanges) return null;
+  return (
+    <div className="flex items-center gap-2.5 bg-phase-primary/40 border border-phase-accent/30
+                    rounded-2xl px-4 py-2.5 text-sm text-phase-text">
+      <span className="text-base shrink-0">☁️</span>
+      <p>
+        <span className="font-semibold">Don't forget to sync!</span>
+        {' '}Go to Stats and tap <span className="font-semibold">Push to Cloud</span> so your partner can see your update.
+      </p>
+    </div>
+  );
+}
+
 const HEADER_TITLES = {
   home: 'Cute Cycle',
   calendar: 'Calendar',
@@ -120,7 +135,8 @@ export default function App() {
         </p>
       </header>
 
-      <main className="max-w-md mx-auto px-5 pb-32">
+      <main className="max-w-md mx-auto px-5 pb-32 space-y-4">
+        {tab !== 'stats' && <SyncNudge />}
         {tab === 'home'     && <HomeView />}
         {tab === 'calendar' && <CycleCalendar />}
         {tab === 'stats'    && <Stats />}
