@@ -7,6 +7,7 @@ import MochiCat from './components/MochiCat';
 import BottomNav from './components/BottomNav';
 import CycleCalendar from './components/CycleCalendar';
 import Stats from './components/Stats';
+import PhaseAdvice from './components/PhaseAdvice';
 
 function NextPeriodCard({ cycles, cycleLength, todayPhase, todayPhaseInfo }) {
   const nextStart = useMemo(
@@ -91,6 +92,8 @@ function HomeView() {
           <p className="text-2xl font-bold">{bleedingDuration}d</p>
         </div>
       </section>
+
+      <PhaseAdvice phase={todayPhase} />
     </div>
   );
 }
