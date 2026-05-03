@@ -10,12 +10,13 @@ export const TOKEN_KEY  = 'cute-cycle-sync-token';
 export const GIST_KEY   = 'cute-cycle-sync-gist-id';
 export const PARTNER_KEY = 'cute-cycle-partner-mode';
 
-function authHeaders(token) {
-  return {
-    Authorization: `Bearer ${token}`,
+function headers(token) {
+  const h = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
 }
 
 export async function pushToGist({ token, gistId, payload }) {
@@ -32,7 +33,7 @@ export async function pushToGist({ token, gistId, payload }) {
 
   const res = await fetch(`${API}/gists/${gistId}`, {
     method: 'PATCH',
-    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    headers: { ...headers(token), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
@@ -44,13 +45,14 @@ export async function pushToGist({ token, gistId, payload }) {
   return res.json();
 }
 
+// Pull is anonymous-friendly: a public Gist can be read without a token,
+// so the partner only needs the Gist ID ("sync code") to receive data.
 export async function pullFromGist({ token, gistId }) {
-  if (!token)  throw new Error('Missing GitHub token');
-  if (!gistId) throw new Error('Missing Gist ID');
+  if (!gistId) throw new Error('Missing Sync Code (Gist ID)');
 
   const res = await fetch(`${API}/gists/${gistId}`, {
     method: 'GET',
-    headers: authHeaders(token),
+    headers: headers(token),
   });
 
   if (!res.ok) {

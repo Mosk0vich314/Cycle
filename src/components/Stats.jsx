@@ -56,26 +56,32 @@ function PartnerSync() {
       <div>
         <h3 className="font-semibold">Partner Sync</h3>
         <p className="text-xs text-phase-muted mt-0.5">
-          Share a private GitHub Gist as a sync point. Token needs the <code>gist</code> scope only.
+          {isPartnerMode
+            ? 'Enter the Sync Code your partner sent you, then tap Pull.'
+            : 'Push your data to a public Gist. Share the Sync Code with your partner — they don\'t need a GitHub account.'}
         </p>
       </div>
 
-      <label className="block">
-        <span className="text-xs uppercase tracking-wide text-phase-muted">GitHub Token</span>
-        <input
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="ghp_…"
-          className="mt-1 w-full rounded-2xl bg-phase-bg px-3 py-2 text-sm text-phase-text
-                     border border-phase-primary/30 focus:outline-none focus:border-phase-accent"
-        />
-      </label>
+      {!isPartnerMode && (
+        <label className="block">
+          <span className="text-xs uppercase tracking-wide text-phase-muted">GitHub Token (only you need this)</span>
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="ghp_…"
+            className="mt-1 w-full rounded-2xl bg-phase-bg px-3 py-2 text-sm text-phase-text
+                       border border-phase-primary/30 focus:outline-none focus:border-phase-accent"
+          />
+        </label>
+      )}
 
       <label className="block">
-        <span className="text-xs uppercase tracking-wide text-phase-muted">Gist ID</span>
+        <span className="text-xs uppercase tracking-wide text-phase-muted">
+          Sync Code {isPartnerMode ? '(from your partner)' : '(share this with her)'}
+        </span>
         <input
           type="text"
           autoComplete="off"
@@ -84,7 +90,8 @@ function PartnerSync() {
           onChange={(e) => setGistId(e.target.value)}
           placeholder="e.g. a1b2c3d4e5f6…"
           className="mt-1 w-full rounded-2xl bg-phase-bg px-3 py-2 text-sm text-phase-text
-                     border border-phase-primary/30 focus:outline-none focus:border-phase-accent"
+                     border border-phase-primary/30 focus:outline-none focus:border-phase-accent
+                     font-mono"
         />
       </label>
 
