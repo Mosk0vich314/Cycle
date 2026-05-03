@@ -95,13 +95,7 @@ export default function CycleCalendar() {
     return cls ? `cc-${cls}` : '';
   };
 
-  const tileContent = ({ date, view }) => {
-    if (view !== 'month') return null;
-    const k = dayKey(date);
-    if (card?.mode === 'logging-end' || card?.mode === 'pending') return null;
-    if (classifyTile(date, cycles, predictedPeriodSet, ovulationSet) !== 'ovulation') return null;
-    return <span className="cc-ov-emoji" aria-hidden>✨</span>;
-  };
+  const tileContent = () => null;
 
   function handleDayTap(date) {
     const d = toDate(date);
@@ -371,7 +365,7 @@ function Legend() {
         Predicted period
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="cc-legend-ovulation">✨</span>
+        <span className="cc-legend-ovulation" />
         Ovulation window
       </span>
     </div>
