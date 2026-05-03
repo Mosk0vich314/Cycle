@@ -46,6 +46,7 @@ export default function CycleCalendar() {
     removeCycle,
     adjustCycleDuration,
     getPhaseForDate,
+    isPartnerMode,
   } = useCycle();
 
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -150,10 +151,11 @@ export default function CycleCalendar() {
     <div className="space-y-4">
       <div className="bg-phase-surface rounded-squish p-3 shadow-squish">
         <Calendar
-          onClickDay={handleDayTap}
+          onClickDay={isPartnerMode ? undefined : handleDayTap}
           value={calendarDate}
           tileClassName={tileClassName}
           tileContent={tileContent}
+          tileDisabled={isPartnerMode ? () => true : undefined}
           calendarType="iso8601"
           minDetail="month"
           prev2Label={null}
@@ -162,7 +164,19 @@ export default function CycleCalendar() {
         />
       </div>
 
-      {!card && (
+      {isPartnerMode && (
+        <div className="bg-phase-surface/60 rounded-squish p-4 text-center space-y-0.5">
+          <p className="text-sm font-medium text-phase-text capitalize">
+            {todayPhaseInfo.phase} phase
+            {todayPhaseInfo.dayInCycle && (
+              <span className="text-phase-muted font-normal"> · Day {todayPhaseInfo.dayInCycle}</span>
+            )}
+          </p>
+          <p className="text-xs text-phase-muted">Read-only — partner view 💕</p>
+        </div>
+      )}
+
+      {!isPartnerMode && !card && (
         <>
           <HintCard phaseInfo={todayPhaseInfo} />
           <button
