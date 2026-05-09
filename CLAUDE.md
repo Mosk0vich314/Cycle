@@ -19,13 +19,19 @@ Single-page React PWA. No backend, no auth — all state lives in `localStorage`
 
 ### Data model
 
-The single source of truth is an array of cycle objects:
+The single source of truth is stored in `localStorage` under `cute-cycle-data-v2`:
 
 ```js
-cycles: [{ start: 'YYYY-MM-DD', length: number }, ...]
+{
+  cycles: [{ start: 'YYYY-MM-DD', length: number }, ...],
+  manualCycleLength: number | null,
+  customPartnerTips: [{ id: string, text: string, phase: 'menstruation'|'follicular'|'ovulation'|'luteal'|'all' }, ...],
+}
 ```
 
 `start` is a date-only string (a logical local date, never a Date object in storage). `length` is bleeding duration in days. Predicted future cycles, ovulation windows, average cycle length, and the current phase are all *derived* from this array — never stored. `CycleContext` holds this array; `utils/cycle.js` contains the pure functions that derive everything else. Adding a feature that depends on cycle data should pull it from `useCycle()` or write a new derivation in `utils/cycle.js` rather than introducing a new persisted field.
+
+`customPartnerTips` are messages the cycle owner writes for their partner. They are included in the Gist sync payload automatically (since the whole `data` object is pushed). In partner mode, `PhaseAdvice` filters and displays tips matching the current phase or tagged `'all'`. The girl manages them via the editor at the bottom of `PhaseAdvice` in self mode. `addCustomPartnerTip` / `removeCustomPartnerTip` are exposed from `CycleContext`.
 
 ### Timezone discipline
 
@@ -51,6 +57,10 @@ This app has been bitten repeatedly by `parseISO('YYYY-MM-DD')` returning UTC mi
 `vite-plugin-pwa` with `registerType: 'autoUpdate'`, `skipWaiting`, `clientsClaim`, `cleanupOutdatedCaches`. Combined with the `controllerchange` reload handler in `main.jsx`, a new deploy is picked up automatically — no hard refresh required, even on iOS PWA. `__BUILD_TIME__` is baked in at build time via `vite.config.js`'s `define` and shown in the Stats tab so a deployment can be verified visually.
 
 PWA manifest icons use `purpose: 'any'` only — never `'maskable'`, since Brave applies an aggressive ~33% safe-zone crop to maskable icons and the logo gets butchered.
+
+### Phase GIFs (`src/data/phaseGifs.js`)
+
+`PHASE_GIFS` is an object keyed by phase, each value an array of `{ src, caption }` objects. The displayed GIF rotates daily via `epochDay % array.length` (UTC midnight). To add or swap GIFs, edit the array for the relevant phase — search "peach goma `<vibe>`" on Tenor and paste the media URL. The component has an `onError` fallback to 🐱 so broken URLs are safe.
 
 ### Things to avoid
 

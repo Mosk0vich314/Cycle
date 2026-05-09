@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCycle } from '../context/CycleContext';
 
 const PHASE_ADVICE = {
@@ -70,8 +71,131 @@ const PARTNER_SECTIONS = [
   { key: 'vibe',    label: 'Vibe',    emoji: '🌷' },
 ];
 
+const PHASES = [
+  { value: 'all',          label: 'Every phase' },
+  { value: 'menstruation', label: 'Menstruation 🌸' },
+  { value: 'follicular',   label: 'Follicular 🌿' },
+  { value: 'ovulation',    label: 'Ovulation ✨' },
+  { value: 'luteal',       label: 'Luteal 🍑' },
+];
+
+function CustomTipEditor({ onClose }) {
+  const { addCustomPartnerTip } = useCycle();
+  const [text, setText]   = useState('');
+  const [phase, setPhase] = useState('all');
+
+  function handleSave() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    addCustomPartnerTip(trimmed, phase);
+    onClose();
+  }
+
+  return (
+    <div className="bg-phase-bg/60 rounded-2xl p-3 space-y-2">
+      <textarea
+        autoFocus
+        rows={2}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="e.g. Bring me a hot chocolate and don't touch the remote 🍫"
+        className="w-full bg-phase-surface/80 rounded-xl px-3 py-2 text-sm text-phase-text
+                   border border-phase-primary/30 focus:outline-none focus:border-phase-accent
+                   resize-none placeholder:text-phase-muted/60"
+      />
+      <div className="flex items-center gap-2">
+        <select
+          value={phase}
+          onChange={(e) => setPhase(e.target.value)}
+          className="flex-1 bg-phase-surface/80 rounded-xl px-2 py-1.5 text-xs text-phase-text
+                     border border-phase-primary/30 focus:outline-none focus:border-phase-accent"
+        >
+          {PHASES.map((p) => (
+            <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleSave}
+          disabled={!text.trim()}
+          className="rounded-xl bg-phase-accent px-3 py-1.5 text-xs font-semibold text-white
+                     disabled:opacity-40 active:scale-95 transition-transform"
+        >
+          Save
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-xl bg-phase-surface px-3 py-1.5 text-xs text-phase-muted
+                     active:scale-95 transition-transform"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CustomTipsManager({ phase }) {
+  const { customPartnerTips, removeCustomPartnerTip } = useCycle();
+  const [adding, setAdding] = useState(false);
+
+  const tips = customPartnerTips.filter((t) => t.phase === phase || t.phase === 'all');
+  const phaseLabel = PHASES.find((p) => p.value === phase)?.label ?? phase;
+
+  return (
+    <div className="space-y-2 pt-1">
+      <p className="text-xs font-bold text-phase-accent flex items-center gap-1.5">
+        <span aria-hidden>📝</span>
+        Notes for your partner
+      </p>
+
+      {customPartnerTips.length === 0 && !adding && (
+        <p className="text-xs text-phase-muted/70 italic">
+          No custom notes yet — add one and your partner will see it after the next sync.
+        </p>
+      )}
+
+      {customPartnerTips.map((tip) => {
+        const label = PHASES.find((p) => p.value === tip.phase)?.label ?? tip.phase;
+        return (
+          <div
+            key={tip.id}
+            className="flex items-start gap-2 bg-phase-bg/60 rounded-2xl px-3 py-2"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-phase-text/90 leading-relaxed">{tip.text}</p>
+              <p className="text-xs text-phase-muted/70 mt-0.5">{label}</p>
+            </div>
+            <button
+              onClick={() => removeCustomPartnerTip(tip.id)}
+              aria-label="Remove tip"
+              className="shrink-0 text-phase-muted/50 hover:text-phase-accent text-base leading-none
+                         active:scale-90 transition-transform mt-0.5"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+
+      {adding
+        ? <CustomTipEditor onClose={() => setAdding(false)} />
+        : (
+          <button
+            onClick={() => setAdding(true)}
+            className="w-full rounded-2xl border border-dashed border-phase-primary/40
+                       py-2 text-xs text-phase-muted hover:border-phase-accent hover:text-phase-accent
+                       transition-colors active:scale-95"
+          >
+            + Add note for partner
+          </button>
+        )
+      }
+    </div>
+  );
+}
+
 export default function PhaseAdvice({ phase }) {
-  const { isPartnerMode } = useCycle();
+  const { isPartnerMode, customPartnerTips } = useCycle();
 
   const advice   = isPartnerMode
     ? (PARTNER_ADVICE[phase] ?? PARTNER_ADVICE.follicular)
@@ -79,6 +203,10 @@ export default function PhaseAdvice({ phase }) {
   const sections = isPartnerMode ? PARTNER_SECTIONS : SELF_SECTIONS;
   const heading  = isPartnerMode ? '💕 Partner Survival Guide' : '✨ Your Body Right Now';
   const eyebrow  = isPartnerMode ? 'For her partner' : 'Cycle syncing guide';
+
+  const partnerCustomTips = isPartnerMode
+    ? (customPartnerTips ?? []).filter((t) => t.phase === phase || t.phase === 'all')
+    : [];
 
   return (
     <section className="bg-phase-surface rounded-squish p-5 shadow-squish space-y-4">
@@ -99,7 +227,27 @@ export default function PhaseAdvice({ phase }) {
             </p>
           </div>
         ))}
+
+        {partnerCustomTips.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-phase-accent flex items-center gap-1.5">
+              <span aria-hidden>💌</span>
+              From her, just for you
+            </p>
+            {partnerCustomTips.map((tip) => (
+              <div key={tip.id} className="bg-phase-bg/60 rounded-2xl p-3">
+                <p className="text-sm text-phase-text/90 leading-relaxed">{tip.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {!isPartnerMode && (
+        <div className="border-t border-phase-primary/20 pt-3">
+          <CustomTipsManager phase={phase} />
+        </div>
+      )}
     </section>
   );
 }

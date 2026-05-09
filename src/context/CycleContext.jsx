@@ -17,8 +17,9 @@ const CycleContext = createContext(null);
 // v2 schema: periods are stored as cycle objects, not flat day arrays.
 // Using a new storage key so old data doesn't conflict.
 const INITIAL = {
-  cycles: [],           // [{ start: 'yyyy-mm-dd', length: number }]
+  cycles: [],              // [{ start: 'yyyy-mm-dd', length: number }]
   manualCycleLength: null,
+  customPartnerTips: [],   // [{ id: string, text: string, phase: 'menstruation'|'follicular'|'ovulation'|'luteal'|'all' }]
 };
 
 const DEFAULT_BLEEDING_DURATION = 5;
@@ -33,6 +34,7 @@ export function CycleProvider({ children }) {
     setData(() => ({
       cycles: Array.isArray(next?.cycles) ? next.cycles : [],
       manualCycleLength: next?.manualCycleLength ?? null,
+      customPartnerTips: Array.isArray(next?.customPartnerTips) ? next.customPartnerTips : [],
     }));
   }, [setData]);
 
@@ -63,6 +65,21 @@ export function CycleProvider({ children }) {
   }, [setData]);
 
   const reset = useCallback(() => setData(INITIAL), [setData]);
+
+  const addCustomPartnerTip = useCallback((text, phase) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    setData((prev) => ({
+      ...prev,
+      customPartnerTips: [...(prev.customPartnerTips ?? []), { id, text, phase }],
+    }));
+  }, [setData]);
+
+  const removeCustomPartnerTip = useCallback((id) => {
+    setData((prev) => ({
+      ...prev,
+      customPartnerTips: (prev.customPartnerTips ?? []).filter((t) => t.id !== id),
+    }));
+  }, [setData]);
 
   const update = useCallback((patch) => {
     setData((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
@@ -118,11 +135,15 @@ export function CycleProvider({ children }) {
     reset,
     update,
     replaceAll,
+    customPartnerTips: data.customPartnerTips ?? [],
+    addCustomPartnerTip,
+    removeCustomPartnerTip,
     getPhaseForDate: (date) => getPhaseForDate({ date, cycles: data.cycles, cycleLength }),
   }), [data, confirmedBleedingSet, cycleLength, bleedingDuration, stdDev,
       todayPhaseInfo, isPartnerMode, setPartnerMode,
       hasUnsyncedChanges, setLastPushedSnapshot,
-      addCycle, removeCycle, adjustCycleDuration, reset, update, replaceAll]);
+      addCycle, removeCycle, adjustCycleDuration, reset, update, replaceAll,
+      addCustomPartnerTip, removeCustomPartnerTip]);
 
   return (
     <CycleContext.Provider value={value}>

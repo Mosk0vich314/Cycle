@@ -129,8 +129,24 @@ body {
 
 .react-calendar__tile--now {
   background: transparent;
-  outline: 2px dashed var(--phase-accent);
-  outline-offset: -4px;
+}
+
+.react-calendar__tile--now abbr {
+  font-weight: 700;
+  color: var(--phase-accent);
+}
+
+/* Today when also selected: don't flood-fill it like a period tile */
+.react-calendar__tile--now.react-calendar__tile--active,
+.react-calendar__tile--now.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--now.react-calendar__tile--active:enabled:focus {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.react-calendar__tile--now.react-calendar__tile--active abbr {
+  font-weight: 700;
+  color: var(--phase-accent) !important;
 }
 
 .react-calendar__tile--active,
@@ -190,6 +206,18 @@ body {
 .cc-period-end.react-calendar__tile--active      { border-radius: 0 9999px 9999px 0 !important; }
 .cc-period-single.react-calendar__tile--active,
 .cc-period-isolated.react-calendar__tile--active { border-radius: 9999px !important; }
+
+/* Today within a logged period: override the --now abbr color back to white,
+   add underline so today is still distinguishable on the colored background */
+.cc-period-start.react-calendar__tile--now abbr,
+.cc-period-mid.react-calendar__tile--now abbr,
+.cc-period-end.react-calendar__tile--now abbr,
+.cc-period-single.react-calendar__tile--now abbr,
+.cc-period-isolated.react-calendar__tile--now abbr {
+  color: #fff !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* ── Predicted future period: medium-strength tint ── */
 .cc-predicted {
