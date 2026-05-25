@@ -17,9 +17,9 @@ const PHASE_GIFS = {
     { src: '/Cycle/gifs/ovulation/ovulation-3.gif', caption: 'You\'re magnetic today 💫' },
   ],
   luteal: [
-    { src: '/Cycle/gifs/luteal/follicular-2.gif',        caption: 'Cozy peachy vibes 🍑' },
-    { src: '/Cycle/gifs/luteal/peach-goma-kiss-new.gif', caption: 'Nesting mode activated 🫶' },
-    { src: '/Cycle/gifs/luteal/peach-goma.gif',          caption: 'Almost there, you\'ve got this 🌙' },
+    { src: '/Cycle/gifs/luteal/luteal-1.gif', caption: 'Cozy peachy vibes 🍑' },
+    { src: '/Cycle/gifs/luteal/luteal-2.gif', caption: 'Nesting mode activated 🫶' },
+    { src: '/Cycle/gifs/luteal/luteal-3.gif', caption: 'Almost there, you\'ve got this 🌙' },
   ],
 };
 
